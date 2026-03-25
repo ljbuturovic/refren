@@ -1,4 +1,4 @@
-# refren: manuscript PDF file renamer
+# refren: scientific manuscript PDF file renamer
 
 ```bash
 $ ./refren.py 1758-2946-6-10.pdf 

@@ -37,6 +37,7 @@ The program uses Claude API, and therefore requires an `ANTHROPIC_API_KEY` envir
 
 ```bash
 cd ~/github/refren
+rm -f dist/*
 uv run python -m build
 uv run twine upload dist/*
 ```

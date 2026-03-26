@@ -31,7 +31,7 @@ Copied to: Krstajic_Buturovic_JCheminform_2014.pdf
 $ pipx install refren # Linux, Mac
 ```
 
-The program uses Claude, and therefore requires an `ANTHROPIC_API_KEY` environment variable.
+The program uses Claude API, and therefore requires an `ANTHROPIC_API_KEY` environment variable. If you don't have the API key, please read SETUP.md for instructions
 
 ## Development
 

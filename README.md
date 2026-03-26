@@ -1,6 +1,6 @@
 # refren: scientific manuscript PDF renamer
 
-Renames a PDF file - assumed to contain a scientific manuscript - to `FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf` using Claude AI to extract bibliographic metadata from the first page.
+Renames a PDF file - assumed to contain a scientific manuscript - to `FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf` using Claude AI to extract bibliographic metadata from the PDF
 
 ## Usage
 

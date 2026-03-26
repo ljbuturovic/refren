@@ -28,7 +28,7 @@ class PaperMetadata(BaseModel):
     year: str
 
 
-def extract_via_llm(text: str, metadata: dict | None = None) -> PaperMetadata:
+def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetadata:
     """Use Claude to extract paper metadata from first-page text."""
     print("  (calling Claude API...)")
     try:
@@ -38,17 +38,21 @@ def extract_via_llm(text: str, metadata: dict | None = None) -> PaperMetadata:
             max_tokens=512,
             system=(
                 "You are a scientific literature assistant. "
-                "Extract bibliographic metadata from the first page of a scientific paper. "
+                "Extract bibliographic metadata from a scientific paper. "
                 "For journal_abbreviation, use the standard ISO/NLM abbreviation (e.g. 'Circulation', "
                 "'N Engl J Med', 'JAMA', 'Nat Med'). "
-                "Return only last names for authors (no initials, no titles, no credentials)."
+                "Return only last names for authors (no initials, no titles, no credentials). "
+                "Author lists often contain superscript affiliation numbers or symbols — ignore them. "
+                "Always return the first and second author last names by their order in the author list — "
+                "not by prominence, seniority, or position in the affiliations. "
+                "The author list may appear at the end of the paper."
             ),
             messages=[{
                 "role": "user",
                 "content": (
                     "Extract the metadata from this scientific paper.\n\n"
                     + (f"PDF metadata: {metadata}\n\n" if metadata else "")
-                    + f"First page text:\n{text[:4000]}"
+                    + f"Paper text:\n{full_text}"
                 ),
             }],
             output_format=PaperMetadata,
@@ -65,7 +69,7 @@ def extract_via_llm(text: str, metadata: dict | None = None) -> PaperMetadata:
         sys.exit(1)
 
 
-def rename_pdf(pdf_path: str, remove_original: bool = False):
+def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False):
     path = Path(pdf_path)
     if not path.exists():
         print(f"Error: file not found: {pdf_path}")
@@ -76,11 +80,14 @@ def rename_pdf(pdf_path: str, remove_original: bool = False):
 
     with pdfplumber.open(path) as pdf:
         metadata = pdf.metadata or {}
-        first_page_text = pdf.pages[0].extract_text() or ""
-        if len(first_page_text) < 200 and len(pdf.pages) > 1:
-            first_page_text += "\n" + (pdf.pages[1].extract_text() or "")
+        full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
-    meta = extract_via_llm(first_page_text, metadata)
+    if debug:
+        print("=== FULL TEXT (first 4000 chars) ===")
+        print(full_text[:4000])
+        print("=== END DEBUG ===\n")
+
+    meta = extract_via_llm(full_text, metadata)
     first = meta.first_author_last_name
     second = meta.second_author_last_name
     year = meta.year
@@ -109,8 +116,9 @@ def main():
     )
     parser.add_argument("pdf_file")
     parser.add_argument("--remove", action="store_true", help="Remove the original PDF after copying")
+    parser.add_argument("--debug", action="store_true", help="Print extracted text sent to Claude")
     args = parser.parse_args()
-    rename_pdf(args.pdf_file, remove_original=args.remove)
+    rename_pdf(args.pdf_file, remove_original=args.remove, debug=args.debug)
 
 
 if __name__ == "__main__":

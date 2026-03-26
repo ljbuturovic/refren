@@ -4,7 +4,9 @@ Rename a scientific PDF as: FirstAuthorLastName_SecondAuthorLastName_JournalAbbr
 Usage: ./renamer.py <pdf_file>
 """
 
+import argparse
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -179,7 +181,7 @@ def extract_via_llm(text: str, metadata: dict | None = None) -> PaperMetadata:
     return response.parsed_output
 
 
-def rename_pdf(pdf_path: str):
+def rename_pdf(pdf_path: str, remove_original: bool = False):
     path = Path(pdf_path)
     if not path.exists():
         print(f"Error: file not found: {pdf_path}")
@@ -228,19 +230,21 @@ def rename_pdf(pdf_path: str):
     new_path = path.parent / new_name
 
     print(f"\n  {path.name}  ->  {new_name}")
-    confirm = input("Rename? [y/N] ").strip().lower()
-    if confirm == "y":
-        path.rename(new_path)
-        print(f"Renamed to: {new_path}")
-    else:
-        print("Aborted.")
+    shutil.copy2(path, new_path)
+    print(f"Copied to: {new_path}")
+    if remove_original:
+        path.unlink()
+        print(f"Removed: {path.name}")
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: ./renamer.py <pdf_file>")
-        sys.exit(1)
-    rename_pdf(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description="Scientific manuscript PDF file renamer: rename to FirstAuthor_SecondAuthor_Journal_Year"
+    )
+    parser.add_argument("pdf_file")
+    parser.add_argument("--remove", action="store_true", help="Remove the original PDF after copying")
+    args = parser.parse_args()
+    rename_pdf(args.pdf_file, remove_original=args.remove)
 
 
 if __name__ == "__main__":

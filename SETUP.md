@@ -1,4 +1,4 @@
-# Getting Started with refren
+# Setting up Anthropic API key
 
 **refren** uses Claude — an AI assistant made by Anthropic — to do its work. To use it, you need a personal API key from Anthropic. Think of this key as a password that lets refren talk to Claude on your behalf.
 

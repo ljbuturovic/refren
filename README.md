@@ -13,15 +13,16 @@ refren <pdf_file> [--remove]
 ## Example
 
 ```
-$ refren s41467-020-14975-w.pdf
+$ refren 1758-2946-6-10.pdf 
   (calling Claude API...)
-  First author last name : Mayhew
+  First author last name : Krstajic
   Second author last name: Buturovic
-  Journal                : Nature Communications -> Nat Commun
-  Year                   : 2020
+  Journal                : Journal of Cheminformatics -> J Cheminform
+  Year                   : 2014
 
-  s41467-020-14975-w.pdf  ->  Mayhew_Buturovic_NatCommun_2020.pdf
-Copied to: Mayhew_Buturovic_NatCommun_2020.pdf
+  1758-2946-6-10.pdf  ->  Krstajic_Buturovic_JCheminform_2014.pdf
+Copied to: Krstajic_Buturovic_JCheminform_2014.pdf
+
 ```
 
 ## Install

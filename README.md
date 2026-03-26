@@ -1,15 +1,41 @@
-# refren: scientific manuscript PDF file renamer
+# refren: scientific manuscript PDF renamer
 
-```bash
-$ ./refren.py 1758-2946-6-10.pdf 
-  (direct parsing incomplete — calling Claude API...)
-  First author last name : Krstajic
-  Second author last name: Buturovic
-  Journal                : Journal of Cheminformatics -> J Cheminform
-  Year                   : 2014
+Renames a scientific PDF to `FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf` using Claude AI to extract bibliographic metadata from the first page.
 
-  1758-2946-6-10.pdf  ->  Krstajic_Buturovic_JCheminform_2014.pdf
-Rename? [y/N] y
-Renamed to: Krstajic_Buturovic_JCheminform_2014.pdf
+## Usage
+
+```
+refren <pdf_file> [--remove]
 ```
 
+`--remove` deletes the original PDF after creating the renamed copy.
+
+## Example
+
+```
+$ refren s41467-020-14975-w.pdf
+  (calling Claude API...)
+  First author last name : Mayhew
+  Second author last name: Buturovic
+  Journal                : Nature Communications -> Nat Commun
+  Year                   : 2020
+
+  s41467-020-14975-w.pdf  ->  Mayhew_Buturovic_NatCommun_2020.pdf
+Copied to: Mayhew_Buturovic_NatCommun_2020.pdf
+```
+
+## Install
+
+```
+pipx install refren
+```
+
+Requires an `ANTHROPIC_API_KEY` environment variable.
+
+## Development
+
+```bash
+cd ~/github/refren
+uv run python -m build
+uv run twine upload dist/*
+```

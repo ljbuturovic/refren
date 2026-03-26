@@ -28,7 +28,7 @@ Copied to: Krstajic_Buturovic_JCheminform_2014.pdf
 ## Install
 
 ```
-pipx install refren
+$ pipx install refren # Linux, Mac
 ```
 
 The program uses Claude, and therefore requires an `ANTHROPIC_API_KEY` environment variable.

@@ -31,28 +31,38 @@ class PaperMetadata(BaseModel):
 def extract_via_llm(text: str, metadata: dict | None = None) -> PaperMetadata:
     """Use Claude to extract paper metadata from first-page text."""
     print("  (calling Claude API...)")
-    client = anthropic.Anthropic()
-    response = client.messages.parse(
-        model="claude-opus-4-6",
-        max_tokens=512,
-        system=(
-            "You are a scientific literature assistant. "
-            "Extract bibliographic metadata from the first page of a scientific paper. "
-            "For journal_abbreviation, use the standard ISO/NLM abbreviation (e.g. 'Circulation', "
-            "'N Engl J Med', 'JAMA', 'Nat Med'). "
-            "Return only last names for authors (no initials, no titles, no credentials)."
-        ),
-        messages=[{
-            "role": "user",
-            "content": (
-                "Extract the metadata from this scientific paper.\n\n"
-                + (f"PDF metadata: {metadata}\n\n" if metadata else "")
-                + f"First page text:\n{text[:4000]}"
+    try:
+        client = anthropic.Anthropic()
+        response = client.messages.parse(
+            model="claude-opus-4-6",
+            max_tokens=512,
+            system=(
+                "You are a scientific literature assistant. "
+                "Extract bibliographic metadata from the first page of a scientific paper. "
+                "For journal_abbreviation, use the standard ISO/NLM abbreviation (e.g. 'Circulation', "
+                "'N Engl J Med', 'JAMA', 'Nat Med'). "
+                "Return only last names for authors (no initials, no titles, no credentials)."
             ),
-        }],
-        output_format=PaperMetadata,
-    )
-    return response.parsed_output
+            messages=[{
+                "role": "user",
+                "content": (
+                    "Extract the metadata from this scientific paper.\n\n"
+                    + (f"PDF metadata: {metadata}\n\n" if metadata else "")
+                    + f"First page text:\n{text[:4000]}"
+                ),
+            }],
+            output_format=PaperMetadata,
+        )
+        return response.parsed_output
+    except (anthropic.AuthenticationError, TypeError):
+        print("Error: invalid or missing ANTHROPIC_API_KEY. Please get and set ANTHROPIC_API_KEY to use this program")
+        sys.exit(1)
+    except anthropic.APIConnectionError:
+        print("Error: could not connect to the Anthropic API. Check your internet connection.")
+        sys.exit(1)
+    except anthropic.APIStatusError as e:
+        print(f"Error: Anthropic API returned an error ({e.status_code}).")
+        sys.exit(1)
 
 
 def rename_pdf(pdf_path: str, remove_original: bool = False):

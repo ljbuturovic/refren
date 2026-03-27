@@ -14,6 +14,8 @@ import anthropic
 import pymupdf
 from pydantic import BaseModel
 
+__version__ = "0.8.0"
+
 
 def sanitize(s: str) -> str:
     """Remove characters unsafe for filenames."""
@@ -117,12 +119,18 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Scientific manuscript PDF file renamer: rename to FirstAuthor_SecondAuthor_Journal_Year"
+        description=f"refren {__version__} — scientific manuscript PDF file renamer"
     )
-    parser.add_argument("pdf_file")
+    parser.add_argument("pdf_file", nargs="?")
     parser.add_argument("--remove", action="store_true", help="Remove the original PDF after copying")
     parser.add_argument("--debug", action="store_true", help="Save extracted text to .txt file for inspection")
     args = parser.parse_args()
+
+    if not args.pdf_file:
+        print(f"refren {__version__}")
+        parser.print_usage()
+        return
+
     rename_pdf(args.pdf_file, remove_original=args.remove, debug=args.debug)
 
 

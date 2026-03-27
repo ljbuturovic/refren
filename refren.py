@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 import anthropic
-import pdfplumber
+import pymupdf
 from pydantic import BaseModel
 
 
@@ -29,7 +29,7 @@ class PaperMetadata(BaseModel):
 
 
 def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetadata:
-    """Use Claude to extract paper metadata from first-page text."""
+    """Use Claude to extract paper metadata from text."""
     print("  (calling Claude API...)")
     try:
         client = anthropic.Anthropic()
@@ -43,9 +43,10 @@ def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetada
                 "'N Engl J Med', 'JAMA', 'Nat Med'). "
                 "Return only last names for authors (no initials, no titles, no credentials). "
                 "Author lists often contain superscript affiliation numbers or symbols — ignore them. "
-                "Always return the first and second author last names by their order in the author list — "
-                "not by prominence, seniority, or position in the affiliations. "
-                "The author list may appear at the end of the paper."
+                "first_author_last_name is the last name of the FIRST person listed in the author byline. "
+                "second_author_last_name is the last name of the SECOND person listed in the author byline. "
+                "Ignore seniority, prominence, and correspondence — use only the order names appear in the byline. "
+                "The author byline may appear at the end of the paper."
             ),
             messages=[{
                 "role": "user",
@@ -69,6 +70,12 @@ def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetada
         sys.exit(1)
 
 
+def extract_text(path: Path) -> str:
+    """Extract text from PDF using pymupdf (handles multi-column layouts)."""
+    doc = pymupdf.open(str(path))
+    return chr(12).join(page.get_text() for page in doc)
+
+
 def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False):
     path = Path(pdf_path)
     if not path.exists():
@@ -78,16 +85,14 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
         print(f"Error: not a PDF file: {pdf_path}")
         sys.exit(1)
 
-    with pdfplumber.open(path) as pdf:
-        metadata = pdf.metadata or {}
-        full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    full_text = extract_text(path)
 
     if debug:
-        print("=== FULL TEXT (first 4000 chars) ===")
-        print(full_text[:4000])
-        print("=== END DEBUG ===\n")
+        debug_file = path.with_suffix(".txt")
+        debug_file.write_text(full_text)
+        print(f"  [debug] extracted text saved to {debug_file}")
 
-    meta = extract_via_llm(full_text, metadata)
+    meta = extract_via_llm(full_text)
     first = meta.first_author_last_name
     second = meta.second_author_last_name
     year = meta.year
@@ -116,7 +121,7 @@ def main():
     )
     parser.add_argument("pdf_file")
     parser.add_argument("--remove", action="store_true", help="Remove the original PDF after copying")
-    parser.add_argument("--debug", action="store_true", help="Print extracted text sent to Claude")
+    parser.add_argument("--debug", action="store_true", help="Save extracted text to .txt file for inspection")
     args = parser.parse_args()
     rename_pdf(args.pdf_file, remove_original=args.remove, debug=args.debug)
 

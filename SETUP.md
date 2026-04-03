@@ -6,11 +6,11 @@ Don't worry: this is a one-time setup, it takes about 5 minutes, and the cost is
 
 ---
 
-## Step 1 — Create an Anthropic account
+## Step 1 — Create a *Claude Console* account
 
 Go to **[console.anthropic.com](https://console.anthropic.com)** and sign up with your email address.
 
-> ⚠️ **Note:** This is a *developer* account, separate from the Claude chatbot at claude.ai. Even if you already use Claude, you'll need to register here separately.
+> ⚠️ **Note:** This is a *Console* account, separate from the Claude chatbot at claude.ai. It allows refren to communicate with Claude LLM. Even if you already use Claude, you'll need to register here separately.
 
 ---
 

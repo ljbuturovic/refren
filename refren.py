@@ -14,7 +14,7 @@ import anthropic
 import pymupdf
 from pydantic import BaseModel
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 
 def sanitize(s: str) -> str:
@@ -23,6 +23,7 @@ def sanitize(s: str) -> str:
 
 
 class PaperMetadata(BaseModel):
+    article_type: str  # "research" for original research; otherwise e.g. "Editorial", "Commentary", "Perspective"
     first_author_last_name: str
     second_author_last_name: str
     journal_full_name: str
@@ -41,14 +42,23 @@ def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetada
             system=(
                 "You are a scientific literature assistant. "
                 "Extract bibliographic metadata from a scientific paper. "
-                "For journal_abbreviation, use the standard ISO/NLM abbreviation (e.g. 'Circulation', "
-                "'N Engl J Med', 'JAMA', 'Nat Med'). "
+                "For journal_abbreviation, use the standard ISO/NLM abbreviation. "
+                "Key abbreviations: Nature Medicine -> NatMed, Nature Communications -> NatCommun, "
+                "Nature -> Nature, New England Journal of Medicine -> NEnglJMed, "
+                "JAMA -> JAMA, BMJ -> BMJ, Lancet -> Lancet, Science -> Science, Cell -> Cell, "
+                "PLOS One -> PLoSOne, Circulation -> Circulation, "
+                "Journal of Clinical Oncology -> JClinOncol, "
+                "BMJ Medicine -> BMJMed "
                 "Return only last names for authors (no initials, no titles, no credentials). "
                 "Author lists often contain superscript affiliation numbers or symbols — ignore them. "
                 "first_author_last_name is the last name of the FIRST person listed in the author byline. "
                 "second_author_last_name is the last name of the SECOND person listed in the author byline. "
                 "Ignore seniority, prominence, and correspondence — use only the order names appear in the byline. "
-                "The author byline may appear at the end of the paper."
+                "The author byline may appear at the end of the paper. "
+                "For article_type: use 'research' for original research articles; "
+                "for other types use the exact article type label as it appears in the paper "
+                "(e.g. 'Editorial', 'Commentary', 'Perspective', 'Review', 'Letter'). "
+                "For non-research articles, first_author_last_name and second_author_last_name may be left empty."
             ),
             messages=[{
                 "role": "user",
@@ -95,18 +105,23 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
         print(f"  [debug] extracted text saved to {debug_file}")
 
     meta = extract_via_llm(full_text)
+    article_type = meta.article_type
     first = meta.first_author_last_name
     second = meta.second_author_last_name
     year = meta.year
     journal_full = meta.journal_full_name
     journal_abbr = meta.journal_abbreviation
 
+    print(f"  Article type           : {article_type}")
     print(f"  First author last name : {first}")
     print(f"  Second author last name: {second}")
     print(f"  Journal                : {journal_full} -> {journal_abbr}")
     print(f"  Year                   : {year}")
 
-    new_name = f"{sanitize(first)}_{sanitize(second)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
+    if article_type.lower() != "research":
+        new_name = f"{sanitize(article_type)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
+    else:
+        new_name = f"{sanitize(first)}_{sanitize(second)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
     new_path = path.parent / new_name
 
     print(f"\n  {path.name}  ->  {new_name}")

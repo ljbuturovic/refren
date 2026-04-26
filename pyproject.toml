@@ -1,6 +1,6 @@
 [project]
 name = "refren"
-version = "0.9.0"
+version = "0.10.0"
 description = "Scientific manuscript PDF file renamer"
 readme = "README.md"
 requires-python = ">=3.10"

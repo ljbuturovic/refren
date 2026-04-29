@@ -63,7 +63,9 @@ def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetada
                 "For article_type: use 'research' for original research articles; "
                 "for other types use the exact article type label as it appears in the paper "
                 "(e.g. 'Editorial', 'Commentary', 'Perspective', 'Review', 'Letter'). "
-                "For non-research articles, first_author_last_name and second_author_last_name may be left empty."
+                "Always populate first_author_last_name and second_author_last_name when a byline is present, "
+                "even for non-research articles like Perspectives, Commentaries, Reviews, and Letters. "
+                "Leave them empty only when there is genuinely no author byline (e.g. unsigned Editorials)."
             ),
             messages=[{
                 "role": "user",
@@ -123,10 +125,10 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
     print(f"  Journal                : {journal_full} -> {journal_abbr}")
     print(f"  Year                   : {year}")
 
-    if article_type.lower() != "research":
-        new_name = f"{sanitize(article_type)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
-    else:
+    if first:
         new_name = f"{sanitize(first)}_{sanitize(second)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
+    else:
+        new_name = f"{sanitize(article_type)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
     new_path = path.parent / new_name
 
     print(f"\n  {path.name}  ->  {new_name}")

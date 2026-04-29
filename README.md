@@ -1,3 +1,5 @@
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 # refren: scientific manuscript PDF renamer
 
 Renames a PDF file - assumed to contain a scientific manuscript - to `FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf` using Claude AI to extract bibliographic metadata from the PDF

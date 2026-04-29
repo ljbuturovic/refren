@@ -8,13 +8,17 @@ import argparse
 import re
 import shutil
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import anthropic
 import pymupdf
 from pydantic import BaseModel
 
-__version__ = "0.9.0"
+try:
+    __version__ = version("refren")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 
 def sanitize(s: str) -> str:

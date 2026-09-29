@@ -883,10 +883,11 @@ wheels = [
 
 [[package]]
 name = "refren"
-version = "0.10.0"
+version = "0.14.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "httpx" },
     { name = "pymupdf" },
 ]
 
@@ -900,6 +901,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.86.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pymupdf", specifier = ">=1.27.2.2" },
 ]
 

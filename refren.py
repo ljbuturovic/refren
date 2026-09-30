@@ -5,6 +5,7 @@ Usage: ./refren.py <pdf_file>
 """
 
 import argparse
+import hashlib
 import json
 import mimetypes
 import re
@@ -189,19 +190,27 @@ def filename_from_download(resp: httpx.Response, url: str, index: int) -> str:
 
 
 def download_supplements(urls: list[str], dest_dir: Path) -> list[Path]:
-    """Download each supplement URL, saving into dest_dir. Skips (with a warning) any that fail."""
+    """Download each supplement URL, saving into dest_dir. Skips (with a warning) any that fail,
+    and skips any whose content duplicates one already saved (the model can list the same file
+    twice, e.g. via two different mirror URLs)."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     saved = []
+    seen_hashes = set()
     with httpx.Client(
         follow_redirects=True, timeout=60.0, headers={"User-Agent": "Mozilla/5.0 (compatible; refren/1.0)"}
     ) as client:
-        for i, url in enumerate(urls, start=1):
+        for i, url in enumerate(dict.fromkeys(urls), start=1):
             try:
                 resp = client.get(url)
                 resp.raise_for_status()
             except httpx.HTTPError as e:
                 print(f"  Warning: failed to download {url} ({e})")
                 continue
+            content_hash = hashlib.sha256(resp.content).hexdigest()
+            if content_hash in seen_hashes:
+                print(f"  Skipping {url}: duplicate of an already-downloaded file")
+                continue
+            seen_hashes.add(content_hash)
             out_path = dest_dir / filename_from_download(resp, url, i)
             out_path.write_bytes(resp.content)
             saved.append(out_path)
@@ -242,23 +251,22 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
         new_name = f"{sanitize(first)}_{sanitize(second)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
     else:
         new_name = f"{sanitize(article_type)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
-    new_path = path.parent / new_name
 
-    if new_path.resolve() == path.resolve():
-        print(f"\n  {path.name} is already correctly named — skipping rename.")
-    else:
-        print(f"\n  {path.name}  ->  {new_name}")
+    if fetch_supplement:
+        # Always create a fresh <name>/ folder and put a copy of the PDF and its
+        # supplement inside it, regardless of any existing renamed copy elsewhere.
+        dest_dir = path.parent / Path(new_name).stem
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        new_path = dest_dir / new_name
         shutil.copy2(path, new_path)
-        print(f"Copied to: {new_path}")
+        print(f"\n  {path.name}  ->  {new_path}")
         if remove_original:
             path.unlink()
             print(f"Removed: {path.name}")
 
-    if fetch_supplement:
         print()
         result = find_supplement(meta)
         if result.found and result.supplement_urls:
-            dest_dir = new_path.parent / f"{new_path.stem}_supplement"
             saved = download_supplements(result.supplement_urls, dest_dir)
             if saved:
                 print(f"  Supplement saved to: {dest_dir}/")
@@ -269,6 +277,17 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
         else:
             note = f" {result.notes}" if result.notes else ""
             print(f"  No supplementary material found.{note}")
+    else:
+        new_path = path.parent / new_name
+        if new_path.resolve() == path.resolve():
+            print(f"\n  {path.name} is already correctly named — skipping rename.")
+        else:
+            print(f"\n  {path.name}  ->  {new_name}")
+            shutil.copy2(path, new_path)
+            print(f"Copied to: {new_path}")
+            if remove_original:
+                path.unlink()
+                print(f"Removed: {path.name}")
 
 
 def main():

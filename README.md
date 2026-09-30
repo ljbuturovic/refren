@@ -9,10 +9,12 @@ refren renames it to `FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf` using Cla
 ## Usage
 
 ```
-refren <pdf_file> [--remove]
+refren <pdf_file> [--remove] [--supplement]
 ```
 
 `--remove` deletes the original PDF after creating the renamed copy.
+
+`--supplement` also searches the web for the paper's supplementary material and downloads it. When used, refren creates a `FirstAuthor_SecondAuthor_JournalAbbrev_Year/` folder and puts both the renamed PDF and the downloaded supplement inside it (a fresh copy is made even if a renamed copy already exists elsewhere).
 
 ## Example
 
@@ -27,6 +29,21 @@ $ refren 1758-2946-6-10.pdf
   1758-2946-6-10.pdf  ->  Krstajic_Buturovic_JCheminform_2014.pdf
 Copied to: Krstajic_Buturovic_JCheminform_2014.pdf
 
+```
+
+```
+$ refren 1758-2946-6-10.pdf --supplement
+  (calling Claude API...)
+  First author last name : Krstajic
+  Second author last name: Buturovic
+  Journal                : Journal of Cheminformatics -> J Cheminform
+  Year                   : 2014
+
+  1758-2946-6-10.pdf  ->  Krstajic_Buturovic_JCheminform_2014/Krstajic_Buturovic_JCheminform_2014.pdf
+
+  (searching the web for supplementary material...)
+  Supplement saved to: Krstajic_Buturovic_JCheminform_2014/
+    13321_2014_Article_10_MOESM1_ESM.pdf
 ```
 
 ## Install

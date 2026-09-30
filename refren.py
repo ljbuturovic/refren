@@ -39,6 +39,7 @@ class PaperMetadata(BaseModel):
     year: str
     title: str = ""  # full paper title, used only for supplement lookup, not the filename
     doi: str = ""  # used only for supplement lookup, not the filename
+    arxiv_id: str = ""  # e.g. "2608.14705v1", used only for supplement lookup, not the filename
 
 
 class SupplementResult(BaseModel):
@@ -86,7 +87,10 @@ def extract_via_llm(full_text: str, metadata: dict | None = None) -> PaperMetada
                 "Leave them empty only when there is genuinely no author byline (e.g. unsigned Editorials). "
                 "Also extract the paper's full title into 'title', and its DOI into 'doi' if one is printed "
                 "anywhere in the text (often near the header, footer, or first page — look for a string starting "
-                "with '10.'). Leave 'doi' empty if none is present."
+                "with '10.'). Leave 'doi' empty if none is present. "
+                "If the paper is an arXiv preprint, also extract the arXiv identifier (e.g. '2608.14705' or "
+                "'2608.14705v1', found near an 'arXiv:' label, often in the header/footer) into 'arxiv_id'. "
+                "Leave 'arxiv_id' empty for non-arXiv papers."
             ),
             messages=[{
                 "role": "user",
@@ -116,8 +120,35 @@ def extract_text(path: Path) -> str:
     return chr(12).join(page.get_text() for page in doc)
 
 
+def find_arxiv_ancillary_files(arxiv_id: str) -> SupplementResult:
+    """Check arXiv's ancillary-files listing directly. arXiv's URL scheme for this is fixed and
+    documented, so a direct HTTP check is more reliable than asking a general web search to find
+    and correctly interpret the (JS-augmented) abstract page."""
+    print("  (checking arXiv for ancillary files...)")
+    clean_id = arxiv_id.strip()
+    check_url = f"https://arxiv.org/src/{clean_id}/anc"
+    try:
+        with httpx.Client(
+            follow_redirects=True, timeout=30.0, headers={"User-Agent": "Mozilla/5.0 (compatible; refren/1.0)"}
+        ) as client:
+            resp = client.get(check_url)
+    except httpx.HTTPError as e:
+        return SupplementResult(found=False, notes=f"Could not reach arXiv: {e}")
+
+    if resp.status_code == 404:
+        return SupplementResult(found=False, notes="No ancillary files listed on arXiv for this paper.")
+    if resp.is_error:
+        return SupplementResult(found=False, notes=f"arXiv returned an unexpected status ({resp.status_code}).")
+
+    # arXiv bundles all ancillary files together with the paper's source into one tarball.
+    return SupplementResult(found=True, supplement_urls=[f"https://arxiv.org/src/{clean_id}"])
+
+
 def find_supplement(meta: PaperMetadata) -> SupplementResult:
     """Use Claude with web search to locate direct download URL(s) for a paper's supplementary material."""
+    if meta.arxiv_id:
+        return find_arxiv_ancillary_files(meta.arxiv_id)
+
     print("  (searching the web for supplementary material...)")
     query_lines = [f"Journal: {meta.journal_full_name}", f"Year: {meta.year}"]
     if meta.title:

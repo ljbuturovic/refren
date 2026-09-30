@@ -6,6 +6,9 @@ Scenario: when you download a scientific paper from the Internet, the PDF file i
 
 refren renames it to `FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf` using Claude AI to extract bibliographic metadata from the PDF
 
+Conveniently, it can also download the supplemental data for the
+manuscript automatically
+
 ## Usage
 
 ```

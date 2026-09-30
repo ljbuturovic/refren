@@ -16,7 +16,7 @@ refren <pdf_file> [--remove] [--supplement]
 
 `--supplement` also searches the web for the paper's supplementary material and downloads it. When used, refren creates a `FirstAuthor_SecondAuthor_JournalAbbrev_Year/` folder and puts both the renamed PDF and the downloaded supplement inside it (a fresh copy is made even if a renamed copy already exists elsewhere).
 
-## Example
+## Examples
 
 ```
 $ refren 1758-2946-6-10.pdf 

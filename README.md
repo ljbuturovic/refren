@@ -32,18 +32,20 @@ Copied to: Krstajic_Buturovic_JCheminform_2014.pdf
 ```
 
 ```
-$ refren 1758-2946-6-10.pdf --supplement
+
+$ refren 2608.14705v1.pdf --supplement
   (calling Claude API...)
-  First author last name : Krstajic
-  Second author last name: Buturovic
-  Journal                : Journal of Cheminformatics -> J Cheminform
-  Year                   : 2014
+  Article type           : research
+  First author last name : Buturović
+  Second author last name: 
+  Journal                : arXiv -> arXiv
+  Year                   : 2026
 
-  1758-2946-6-10.pdf  ->  Krstajic_Buturovic_JCheminform_2014/Krstajic_Buturovic_JCheminform_2014.pdf
+  2608.14705v1.pdf  ->  Buturović__arXiv_2026/Buturović__arXiv_2026.pdf
 
-  (searching the web for supplementary material...)
-  Supplement saved to: Krstajic_Buturovic_JCheminform_2014/
-    13321_2014_Article_10_MOESM1_ESM.pdf
+  (checking arXiv for ancillary files...)
+  Supplement saved to: Buturović__arXiv_2026/
+    arXiv-2608.14705v1.tar.gz
 ```
 
 ## Install

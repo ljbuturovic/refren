@@ -144,10 +144,41 @@ def find_arxiv_ancillary_files(arxiv_id: str) -> SupplementResult:
     return SupplementResult(found=True, supplement_urls=[f"https://arxiv.org/src/{clean_id}"])
 
 
+def find_nature_supplement(doi: str) -> SupplementResult:
+    """Check nature.com directly for Nature-portfolio journals (DOI prefix 10.1038 — Nature, Nature
+    Medicine, Nature Biotechnology, Nature Catalysis, Nature Energy, Signal Transduction and Targeted
+    Therapy, etc. are all hosted there). A direct HTTP check is more reliable than the LLM web search,
+    which cannot get past nature.com's cookie-redirect gate and ends up guessing supplement filenames
+    instead of reading the real page — it consistently guessed the wrong extension/count, and also
+    guessed the wrong CDN host (static-content.springer.com, which 403s with a Google Cloud Storage
+    'AccessDenied' error) instead of the real one (media.springernature.com)."""
+    print("  (checking nature.com for supplementary files...)")
+    slug = doi.split("/", 1)[-1]
+    try:
+        with httpx.Client(
+            follow_redirects=True, timeout=30.0, headers={"User-Agent": "Mozilla/5.0 (compatible; refren/1.0)"}
+        ) as client:
+            resp = client.get(f"https://www.nature.com/articles/{slug}")
+    except httpx.HTTPError as e:
+        return SupplementResult(found=False, notes=f"Could not reach nature.com: {e}")
+
+    if resp.status_code == 404:
+        return SupplementResult(found=False, notes="Article not found on nature.com.")
+    if resp.is_error:
+        return SupplementResult(found=False, notes=f"nature.com returned an unexpected status ({resp.status_code}).")
+
+    urls = sorted(set(re.findall(r"https://media\.springernature\.com/original/springer-static/esm/[^\"']+", resp.text)))
+    if not urls:
+        return SupplementResult(found=False, notes="No supplementary information section found on the article page.")
+    return SupplementResult(found=True, supplement_urls=urls)
+
+
 def find_supplement(meta: PaperMetadata) -> SupplementResult:
     """Use Claude with web search to locate direct download URL(s) for a paper's supplementary material."""
     if meta.arxiv_id:
         return find_arxiv_ancillary_files(meta.arxiv_id)
+    if meta.doi.startswith("10.1038/"):
+        return find_nature_supplement(meta.doi)
 
     print("  (searching the web for supplementary material...)")
     query_lines = [f"Journal: {meta.journal_full_name}", f"Year: {meta.year}"]
@@ -373,9 +404,16 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
 SUPPLEMENT_RELIABILITY = """\
 --supplement reliability by source (as last verified):
   arXiv                        works — checked via arXiv's own ancillary-files listing
-  Nature / Springer journals   inconsistent — direct links sometimes stale/403 even when valid
+  Nature-branded (nature.com)  works — Nature, Nat Med, Nat Biotech, Nat Catalysis, Nat Energy,
+                                Signal Transduct Target Ther, etc. (any 10.1038 DOI); checked directly
+                                via nature.com, not the same platform as other Springer Nature titles
+  Springer/BioMed Central      unknown — untested; different platform than nature.com despite same
+  (link.springer.com, etc.)    parent company (Springer Nature)
   PubMed Central (PMC)         doesn't work — file downloads blocked by a bot-detection challenge
   Elsevier / ScienceDirect     doesn't work — site blocks automated access outright
+  The Lancet                   doesn't work — site blocks automated access; rarely has a PMC copy
+  Annals of Oncology           doesn't work — same ScienceDirect block; rarely has a PMC copy
+  NEJM                         doesn't work — site blocks automated access (Cloudflare challenge)
   other publishers             unknown — untested
 """
 

@@ -26,9 +26,13 @@ Many publishers block automated downloads outright, so this is best-effort, not 
 | Source                     | Status | Notes |
 |-----------------------------|--------|-------|
 | arXiv                       | ✅ Works | Checked directly via arXiv's own ancillary-files listing, not a web search |
-| Nature / Springer journals   | ⚠️ Inconsistent | Direct supplement links sometimes stale/403 even for real, existing files |
+| Nature-branded titles (nature.com) | ✅ Works | Nature, Nature Medicine, Nature Biotechnology, Nature Catalysis, Nature Energy, Signal Transduction and Targeted Therapy, etc. — anything with a `10.1038` DOI, checked directly via nature.com. (Springer Nature also publishes non-Nature-branded journals on a different platform — see below.) |
+| Springer/BioMed Central titles (link.springer.com, biomedcentral.com) | ❓ Unknown | Untested as a deterministic check — a different site than nature.com, despite shared corporate ownership. One example (*J Cheminform*) hit a separate issue: its article page is a JS-rendered SPA with no text in the raw HTML |
 | PubMed Central (PMC)        | ❌ Doesn't work | Article pages are readable, but file downloads are blocked by NCBI's bot-detection challenge |
 | Elsevier / ScienceDirect     | ❌ Doesn't work | Site returns 403 to automated requests outright |
+| The Lancet                   | ❌ Doesn't work | Site blocks automated access; recent trials checked had no PMC copy to fall back to either |
+| Annals of Oncology           | ❌ Doesn't work | Same ScienceDirect/Elsevier block; recent papers checked had no PMC copy either |
+| NEJM                         | ❌ Doesn't work | Site returns a Cloudflare bot-challenge page instead of the file |
 | Other publishers             | ❓ Unknown | Untested |
 
 ## Examples

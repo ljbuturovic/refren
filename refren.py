@@ -163,15 +163,22 @@ def find_supplement(meta: PaperMetadata) -> SupplementResult:
         response = client.messages.create(
             model="claude-opus-4-6",
             max_tokens=1024,
-            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 8}],
             system=(
                 "You are a research assistant that locates supplementary material for scientific papers. "
-                "Given a paper's bibliographic details, search the web to find its page on the publisher's site "
-                "(or a PubMed Central / PMC mirror), then find the direct download URL(s) for its supplementary "
-                "material (sometimes labeled 'Supplementary Information', 'Supporting Information', or "
-                "'Supplemental Data'). Prefer direct file links (ending in .pdf, .zip, .docx, .xlsx, etc.) over "
-                "HTML landing pages. If there are several separate supplementary files, list all of their direct "
-                "URLs. If there is a single combined supplement (e.g. one PDF or one ZIP), list just that one URL. "
+                "Given a paper's bibliographic details, find the direct download URL(s) for its supplementary "
+                "material (sometimes labeled 'Supplementary Information', 'Supporting Information', "
+                "'Supplemental Data', or, on PubMed Central, 'Appendix A: Supplementary data'). "
+                "IMPORTANT — prefer PubMed Central (PMC) over the publisher's own site: many publishers "
+                "(Elsevier/ScienceDirect journal microsites especially) block automated access to their article "
+                "pages, but PMC (pmc.ncbi.nlm.nih.gov) does not and frequently mirrors the full text including "
+                "supplementary files. If the paper has a PMC ID (search '<title> site:ncbi.nlm.nih.gov/pmc' or "
+                "'<DOI> PMC' if not already known), fetch its PMC page and look there first — PMC supplementary "
+                "files are direct links shaped like pmc.ncbi.nlm.nih.gov/articles/instance/<numeric id>/bin/<filename> "
+                "(e.g. mmc1.pdf, mmc2.pdf). Only fall back to the publisher's own site if there's no PMC copy. "
+                "Prefer direct file links (ending in .pdf, .zip, .docx, .xlsx, etc.) over HTML landing pages. "
+                "If there are several separate supplementary files, list all of their direct URLs. If there is a "
+                "single combined supplement (e.g. one PDF or one ZIP), list just that one URL. "
                 "When you are done, respond with ONLY a JSON object (no markdown fences, no other text) matching "
                 'this schema: {"found": bool, "supplement_urls": [string], "notes": string}. '
                 "Set found to false and briefly explain in notes if no supplementary material could be located. "
@@ -207,6 +214,36 @@ def find_supplement(meta: PaperMetadata) -> SupplementResult:
             idx += 1
 
 
+def normalize_pmc_url(url: str) -> str:
+    """PMC supplementary files are actually served at /articles/instance/<id>/bin/<file>, but
+    search results (and the model) commonly give the reader-facing /articles/PMC<id>/bin/<file>
+    form instead, which 404s. Rewrite it to the working form."""
+    return re.sub(r"(pmc\.ncbi\.nlm\.nih\.gov/articles/)PMC(\d+/bin/)", r"\1instance/\2", url)
+
+
+# Magic bytes for extensions we expect supplements to arrive as. Sites that block automated
+# downloads (anti-bot interstitials, login walls) typically respond 200 with an HTML page instead
+# of an error, so a status check alone isn't enough to catch a failed download.
+_MAGIC_BYTES = {
+    ".pdf": b"%PDF",
+    ".zip": b"PK\x03\x04",
+    ".docx": b"PK\x03\x04",
+    ".xlsx": b"PK\x03\x04",
+    ".pptx": b"PK\x03\x04",
+    ".gz": b"\x1f\x8b",
+    ".tar.gz": b"\x1f\x8b",
+}
+
+
+def content_matches_extension(content: bytes, filename: str) -> bool:
+    """Check downloaded bytes actually look like the file type their extension claims."""
+    name = filename.lower()
+    for ext, magic in _MAGIC_BYTES.items():
+        if name.endswith(ext):
+            return content.startswith(magic)
+    return True  # unknown extension — nothing to validate against
+
+
 def filename_from_download(resp: httpx.Response, url: str, index: int) -> str:
     """Derive a filename for a downloaded supplement from headers, or fall back to the URL/content-type."""
     cd = resp.headers.get("content-disposition", "")
@@ -230,7 +267,7 @@ def download_supplements(urls: list[str], dest_dir: Path) -> list[Path]:
     with httpx.Client(
         follow_redirects=True, timeout=60.0, headers={"User-Agent": "Mozilla/5.0 (compatible; refren/1.0)"}
     ) as client:
-        for i, url in enumerate(dict.fromkeys(urls), start=1):
+        for i, url in enumerate(dict.fromkeys(normalize_pmc_url(u) for u in urls), start=1):
             try:
                 resp = client.get(url)
                 resp.raise_for_status()
@@ -242,10 +279,28 @@ def download_supplements(urls: list[str], dest_dir: Path) -> list[Path]:
                 print(f"  Skipping {url}: duplicate of an already-downloaded file")
                 continue
             seen_hashes.add(content_hash)
-            out_path = dest_dir / filename_from_download(resp, url, i)
+            out_name = filename_from_download(resp, url, i)
+            if not content_matches_extension(resp.content, out_name):
+                print(f"  Warning: {url} did not return a valid file (likely blocked by the site) — skipping")
+                continue
+            out_path = dest_dir / out_name
             out_path.write_bytes(resp.content)
             saved.append(out_path)
     return saved
+
+
+def rename_in_place(path: Path, new_name: str, remove_original: bool) -> None:
+    """Rename/copy the PDF next to itself, same as refren does with no --supplement."""
+    new_path = path.parent / new_name
+    if new_path.resolve() == path.resolve():
+        print(f"\n  {path.name} is already correctly named — skipping rename.")
+    else:
+        print(f"\n  {path.name}  ->  {new_name}")
+        shutil.copy2(path, new_path)
+        print(f"Copied to: {new_path}")
+        if remove_original:
+            path.unlink()
+            print(f"Removed: {path.name}")
 
 
 def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False, fetch_supplement: bool = False):
@@ -284,46 +339,52 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
         new_name = f"{sanitize(article_type)}_{sanitize(journal_abbr)}_{sanitize(year)}.pdf"
 
     if fetch_supplement:
-        # Always create a fresh <name>/ folder and put a copy of the PDF and its
-        # supplement inside it, regardless of any existing renamed copy elsewhere.
-        dest_dir = path.parent / Path(new_name).stem
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        new_path = dest_dir / new_name
-        shutil.copy2(path, new_path)
-        print(f"\n  {path.name}  ->  {new_path}")
-        if remove_original:
-            path.unlink()
-            print(f"Removed: {path.name}")
-
         print()
         result = find_supplement(meta)
+        saved = []
         if result.found and result.supplement_urls:
+            # Only create the <name>/ folder if we actually have something to put in it.
+            dest_dir = path.parent / Path(new_name).stem
             saved = download_supplements(result.supplement_urls, dest_dir)
-            if saved:
-                print(f"  Supplement saved to: {dest_dir}/")
-                for p in saved:
-                    print(f"    {p.name}")
-            else:
-                print("  Warning: supplement URL(s) found but none could be downloaded.")
-        else:
-            note = f" {result.notes}" if result.notes else ""
-            print(f"  No supplementary material found.{note}")
-    else:
-        new_path = path.parent / new_name
-        if new_path.resolve() == path.resolve():
-            print(f"\n  {path.name} is already correctly named — skipping rename.")
-        else:
-            print(f"\n  {path.name}  ->  {new_name}")
+            if not saved and not any(dest_dir.iterdir()):
+                dest_dir.rmdir()  # download_supplements created it but left it empty
+
+        if saved:
+            new_path = dest_dir / new_name
             shutil.copy2(path, new_path)
-            print(f"Copied to: {new_path}")
+            print(f"\n  {path.name}  ->  {new_path}")
             if remove_original:
                 path.unlink()
                 print(f"Removed: {path.name}")
+            print(f"  Supplement saved to: {dest_dir}/")
+            for p in saved:
+                print(f"    {p.name}")
+        else:
+            if result.found and result.supplement_urls:
+                note = " Supplement URL(s) were found but none could be downloaded."
+            else:
+                note = f" {result.notes}" if result.notes else ""
+            print(f"  No supplementary material downloaded.{note}")
+            rename_in_place(path, new_name, remove_original)
+    else:
+        rename_in_place(path, new_name, remove_original)
+
+
+SUPPLEMENT_RELIABILITY = """\
+--supplement reliability by source (as last verified):
+  arXiv                        works — checked via arXiv's own ancillary-files listing
+  Nature / Springer journals   inconsistent — direct links sometimes stale/403 even when valid
+  PubMed Central (PMC)         doesn't work — file downloads blocked by a bot-detection challenge
+  Elsevier / ScienceDirect     doesn't work — site blocks automated access outright
+  other publishers             unknown — untested
+"""
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description=f"refren {__version__} — scientific manuscript PDF file renamer"
+        description=f"refren {__version__} — scientific manuscript PDF file renamer",
+        epilog=SUPPLEMENT_RELIABILITY,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("pdf_file", nargs="?")
     parser.add_argument("--remove", action="store_true", help="Remove the original PDF after copying")
@@ -331,7 +392,8 @@ def main():
     parser.add_argument(
         "--supplement",
         action="store_true",
-        help="Also search the web for and download the paper's supplementary material",
+        help="Also search the web for and download the paper's supplementary material (reliability varies "
+        "by publisher — see below)",
     )
     args = parser.parse_args()
 

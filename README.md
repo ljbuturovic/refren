@@ -17,7 +17,19 @@ refren <pdf_file> [--remove] [--supplement]
 
 `--remove` deletes the original PDF after creating the renamed copy.
 
-`--supplement` also searches the web for the paper's supplementary material and downloads it. When used, refren creates a `FirstAuthor_SecondAuthor_JournalAbbrev_Year/` folder and puts both the renamed PDF and the downloaded supplement inside it
+`--supplement` also searches the web for the paper's supplementary material and downloads it. If a supplement is found and successfully downloaded, refren creates a `FirstAuthor_SecondAuthor_JournalAbbrev_Year/` folder and puts both the renamed PDF and the downloaded supplement inside it. If no supplement can be found or downloaded (e.g. the publisher blocks automated downloads), refren falls back to the normal behavior: just rename the PDF in place, no folder created.
+
+### `--supplement` reliability by source
+
+Many publishers block automated downloads outright, so this is best-effort, not guaranteed. As last verified:
+
+| Source                     | Status | Notes |
+|-----------------------------|--------|-------|
+| arXiv                       | ✅ Works | Checked directly via arXiv's own ancillary-files listing, not a web search |
+| Nature / Springer journals   | ⚠️ Inconsistent | Direct supplement links sometimes stale/403 even for real, existing files |
+| PubMed Central (PMC)        | ❌ Doesn't work | Article pages are readable, but file downloads are blocked by NCBI's bot-detection challenge |
+| Elsevier / ScienceDirect     | ❌ Doesn't work | Site returns 403 to automated requests outright |
+| Other publishers             | ❓ Unknown | Untested |
 
 ## Examples
 
@@ -44,9 +56,9 @@ $ refren 2608.14705v1.pdf --supplement
   Journal                : arXiv -> arXiv
   Year                   : 2026
 
-  2608.14705v1.pdf  ->  Buturović__arXiv_2026/Buturović__arXiv_2026.pdf
-
   (checking arXiv for ancillary files...)
+
+  2608.14705v1.pdf  ->  Buturović__arXiv_2026/Buturović__arXiv_2026.pdf
   Supplement saved to: Buturović__arXiv_2026/
     arXiv-2608.14705v1.tar.gz
 ```

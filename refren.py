@@ -416,8 +416,27 @@ SUPPLEMENT_RELIABILITY = """\
 
 
 def main():
+    description = f"""\
+refren {__version__} — scientific manuscript PDF file renamer
+
+Renames a scientific PDF using its bibliographic details:
+  FirstAuthor_SecondAuthor_JournalAbbrev_Year.pdf
+Claude reads the PDF to extract the author names, journal, and year needed to build that name.
+
+Example:
+  $ refren 1758-2946-6-10.pdf
+    (calling Claude API...)
+    Article type           : research
+    First author last name : Krstajic
+    Second author last name: Buturovic
+    Journal                : Journal of Cheminformatics -> J Cheminform
+    Year                   : 2014
+
+    1758-2946-6-10.pdf  ->  Krstajic_Buturovic_JCheminform_2014.pdf
+  Copied to: Krstajic_Buturovic_JCheminform_2014.pdf
+"""
     parser = argparse.ArgumentParser(
-        description=f"refren {__version__} — scientific manuscript PDF file renamer",
+        description=description,
         epilog=SUPPLEMENT_RELIABILITY,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -433,8 +452,7 @@ def main():
     args = parser.parse_args()
 
     if not args.pdf_file:
-        print(f"refren {__version__}")
-        parser.print_usage()
+        parser.print_help()
         return
 
     rename_pdf(args.pdf_file, remove_original=args.remove, debug=args.debug, fetch_supplement=args.supplement)

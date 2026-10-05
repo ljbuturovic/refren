@@ -403,18 +403,15 @@ def rename_pdf(pdf_path: str, remove_original: bool = False, debug: bool = False
 
 SUPPLEMENT_RELIABILITY = """\
 --supplement reliability by source (as last verified):
-  arXiv                        works — checked via arXiv's own ancillary-files listing
-  Nature-branded (nature.com)  works — Nature, Nat Med, Nat Biotech, Nat Catalysis, Nat Energy,
-                                Signal Transduct Target Ther, etc. (any 10.1038 DOI); checked directly
-                                via nature.com, not the same platform as other Springer Nature titles
-  Springer/BioMed Central      unknown — untested; different platform than nature.com despite same
-  (link.springer.com, etc.)    parent company (Springer Nature)
-  PubMed Central (PMC)         doesn't work — file downloads blocked by a bot-detection challenge
-  Elsevier / ScienceDirect     doesn't work — site blocks automated access outright
-  The Lancet                   doesn't work — site blocks automated access; rarely has a PMC copy
-  Annals of Oncology           doesn't work — same ScienceDirect block; rarely has a PMC copy
-  NEJM                         doesn't work — site blocks automated access (Cloudflare challenge)
-  other publishers             unknown — untested
+  arXiv                          works 
+  Nature Portfolio               works 
+  other Springer Nature          untested
+  PubMed Central (PMC)           doesn't work: file downloads blocked by a bot-detection challenge
+  Elsevier / ScienceDirect       doesn't work: site blocks automated access outright
+  The Lancet                     doesn't work: site blocks automated access; rarely has a PMC copy
+  Annals of Oncology             doesn't work: same ScienceDirect block; rarely has a PMC copy
+  NEJM                           doesn't work: site blocks automated access (Cloudflare challenge)
+  other publishers               unknown
 """
 
 
